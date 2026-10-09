@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Vite and build output
+dist/
+.vite/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Tests and coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.idea/
+.vscode/
