@@ -27,6 +27,15 @@ A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e troc
 
 A extensão ainda não está pronta para instalação ou publicação. A pasta `extension/` contém código inicial e precisa ser concluída.
 
+<img width="925" height="571" alt="image" src="https://github.com/user-attachments/assets/0c0fd5e9-fe3b-4902-833d-70a86071e873" />
+
+
+
+
+<img width="926" height="571" alt="image" src="https://github.com/user-attachments/assets/875c0a52-2539-4e29-9f1b-cd8d61a4a674" />
+
+
+
 ## Tecnologias
 
 ### Backend
