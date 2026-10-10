@@ -19,11 +19,13 @@ export class MessagesService {
       normalizedContent.length === 0 ||
       normalizedContent.length > 4000
     ) {
-      throw new BadRequestException('Invalid message');
+      throw new BadRequestException('Mensagem inválida.');
     }
 
     if (senderId === receiverId) {
-      throw new BadRequestException('You cannot message yourself');
+      throw new BadRequestException(
+        'Você não pode enviar mensagens para si mesmo.',
+      );
     }
 
     const receiver = await this.prisma.user.findUnique({
@@ -32,7 +34,7 @@ export class MessagesService {
     });
 
     if (!receiver) {
-      throw new NotFoundException('Receiver not found');
+      throw new NotFoundException('Destinatário não encontrado.');
     }
 
     const friendship = await this.prisma.friendship.findFirst({
@@ -46,7 +48,9 @@ export class MessagesService {
     });
 
     if (!friendship) {
-      throw new ForbiddenException('You can only message accepted friends');
+      throw new ForbiddenException(
+        'Você só pode enviar mensagens para amigos aceitos.',
+      );
     }
 
     return this.prisma.message.create({

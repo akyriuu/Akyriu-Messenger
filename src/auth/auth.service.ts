@@ -17,7 +17,7 @@ export class AuthService {
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
-      throw new Error('JWT_SECRET is not configured');
+      throw new Error('Configure o segredo JWT.');
     }
 
     return secret;
@@ -31,7 +31,7 @@ export class AuthService {
     });
 
     if (existing) {
-      throw new ConflictException('Username already exists');
+      throw new ConflictException('Este nome de usuário já está em uso.');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, 12);
@@ -57,7 +57,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Nome de usuário ou senha inválidos.');
     }
 
     const passwordIsValid = await bcrypt.compare(
@@ -66,7 +66,7 @@ export class AuthService {
     );
 
     if (!passwordIsValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Credenciais inválidas.');
     }
 
     const token = jwt.sign(

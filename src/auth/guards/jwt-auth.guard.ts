@@ -24,14 +24,19 @@ export class JwtAuthGuard implements CanActivate {
     const authorization = request.headers.authorization;
 
     if (!authorization?.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Missing access token');
+      throw new UnauthorizedException(
+        'Sua sessão expirou. Faça login novamente.',
+      );
     }
 
     const token = authorization.slice(7);
     const secret = process.env.JWT_SECRET;
 
     if (!secret) {
-      throw new Error('JWT_SECRET is not configured');
+      throw new Error(
+        'Não foi possível concluir a operação. Tente novamente mais tarde',
+        //  JWT_SECRET is not configured
+      );
     }
 
     try {
@@ -42,7 +47,9 @@ export class JwtAuthGuard implements CanActivate {
         typeof payload.sub !== 'string' ||
         typeof payload.username !== 'string'
       ) {
-        throw new UnauthorizedException('Invalid access token');
+        throw new UnauthorizedException(
+          'A sessão expirou. Faça login novamente.',
+        );
       }
 
       request.user = {
@@ -52,7 +59,9 @@ export class JwtAuthGuard implements CanActivate {
 
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      throw new UnauthorizedException(
+        'A sessão expirou. Faça login novamente.',
+      );
     }
   }
 }

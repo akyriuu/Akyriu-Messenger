@@ -23,11 +23,11 @@ export class FriendsService {
     });
 
     if (!receiver) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Usuário não encontrado.');
     }
 
     if (receiver.id === requesterId) {
-      throw new BadRequestException('You cannot add yourself as a friend');
+      throw new BadRequestException('Você não pode adicionar a si mesmo..');
     }
 
     // Check for an existing relationship in either direction
@@ -42,15 +42,17 @@ export class FriendsService {
 
     if (existing) {
       if (existing.status === 'ACCEPTED') {
-        throw new ConflictException('You are already friends with this user');
+        throw new ConflictException('Vocês já são amigos.');
       }
 
       if (existing.status === 'PENDING') {
         if (existing.requesterId === requesterId) {
-          throw new ConflictException('Friend request already sent');
+          throw new ConflictException(
+            'O pedido já foi enviado, aguarde a resposta.',
+          );
         } else {
           throw new ConflictException(
-            'This user has already sent you a friend request. Accept it instead.',
+            'Esse usuário já enviou um convite, tente aceita-lo.',
           );
         }
       }
@@ -85,15 +87,15 @@ export class FriendsService {
     });
 
     if (!friendship) {
-      throw new NotFoundException('Friend request not found');
+      throw new NotFoundException('Pedido de amizade não encontrado.');
     }
 
     if (friendship.receiverId !== userId) {
-      throw new ForbiddenException('You cannot accept this request');
+      throw new ForbiddenException('Você não pdoe aceitar essa solicitação.');
     }
 
     if (friendship.status !== 'PENDING') {
-      throw new ConflictException('This request is no longer pending');
+      throw new ConflictException('Essa solicitação não está mais pendente.');
     }
 
     return this.prisma.friendship.update({
