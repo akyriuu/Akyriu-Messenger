@@ -361,9 +361,9 @@ export default function App() {
               <span className="eyebrow-dot" /> Aqui você se conecta!
             </div>
             <h1>
-              Conversations
+              Conversas
               <br />
-              that <span>flow.</span>
+              que <span>fluem.</span>
             </h1>
             <p>
               Um lugar simples para manter suas conversas por perto. Sem abas
@@ -502,9 +502,7 @@ export default function App() {
                   : 'Voltar para o login?'}
               <button
                 onClick={() =>
-                  setAuthMode(
-                    authMode === 'login' ? 'register' : 'login',
-                  )
+                  setAuthMode(authMode === 'login' ? 'register' : 'login')
                 }
               >
                 {authMode === 'login' ? 'Criar conta' : 'Fazer login'}
