@@ -910,7 +910,7 @@ export default function App() {
               </div>
             </div>
             <div className="overview-bottom">
-              <span>ORBIT MESSENGER</span>
+              <span>AKYRIU MESSENGER</span>
               <span>
                 Construído pro seu grupo seleto de amigos!{' '}
                 <span className="brand-dot">●</span>
