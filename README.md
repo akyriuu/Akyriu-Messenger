@@ -1,4 +1,4 @@
-# Akyriu Messenger
+# Ryuto Messenger
 
 Mensagens rápidas, sem sair do que você está fazendo.
 
