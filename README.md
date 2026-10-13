@@ -2,7 +2,7 @@
 
 Mensagens rápidas, sem sair do que você está fazendo.
 
-<img width="926" height="571" alt="image" src="https://github.com/user-attachments/assets/875c0a52-2539-4e29-9f1b-cd8d61a4a674" />
+<img width="253" height="115" alt="image" src="https://github.com/user-attachments/assets/b1f14639-de8b-43f3-a791-27faf8edbabb" />
 
 
 O Orbit Messenger é um projeto de mensageria leve pensado para o navegador. A proposta é facilitar conversas curtas e diretas durante o trabalho ou o lazer, sem abrir mão do fluxo da página em que você já está.
