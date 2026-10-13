@@ -2,11 +2,15 @@
 
 Mensagens rápidas, sem sair do que você está fazendo.
 
+<img width="253" height="115" alt="image" src="https://github.com/user-attachments/assets/b1f14639-de8b-43f3-a791-27faf8edbabb" />
+
+
 O Orbit Messenger é um projeto de mensageria leve pensado para o navegador. A proposta é facilitar conversas curtas e diretas durante o trabalho ou o lazer, sem abrir mão do fluxo da página em que você já está.
 
 A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e trocar mensagens em tempo real, com uma interface discreta e fácil de consultar.
 
-> O projeto está em desenvolvimento. O frontend web e a API estão no repositório; a extensão de navegador ainda está em estrutura inicial.
+> <img width="654" height="390" alt="image" src="https://github.com/user-attachments/assets/8454806e-47bb-44b1-82c7-9fac68b1642c" />
+
 
 ## Objetivos
 
@@ -14,6 +18,8 @@ A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e troc
 - Manter a experiência leve, direta e sem excesso de elementos.
 - Permitir comunicação em tempo real entre pessoas conectadas.
 - Evoluir para uma extensão de navegador com acesso rápido ao chat.
+
+
 
 ## Funcionalidades atuais
 
@@ -46,12 +52,10 @@ Nunca use a senha normal da conta Gmail nem versione essas credenciais. Aplique
 a migração com `npx prisma migrate deploy`. Contas antigas sem e-mail podem
 cadastrar/atualizar o endereço na tela de login e confirmá-lo antes de entrar.
 
-<img width="925" height="571" alt="image" src="https://github.com/user-attachments/assets/0c0fd5e9-fe3b-4902-833d-70a86071e873" />
 
 
 
 
-<img width="926" height="571" alt="image" src="https://github.com/user-attachments/assets/875c0a52-2539-4e29-9f1b-cd8d61a4a674" />
 
 
 
