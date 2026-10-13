@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Akryiu Messenger",
-  "description": "Simple side chat for fast and easy replies, connect friends and stay in touch without leaving your current tab.",
+  "name": "Ryuto - Fast web chat!",
+  "description": "Fastest web chat to connect friends and stay in touch without leaving your current tab.",
   "version": "0.1.0",
   "permissions": ["sidePanel", "storage"],
   "host_permissions": ["http://localhost:3000/*", "http://127.0.0.1:3000/*"],

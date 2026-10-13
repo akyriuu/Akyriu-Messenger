@@ -14,10 +14,14 @@ enum FriendshipStatus {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
+  id                         String    @id @default(cuid())
+  username                   String    @unique
+  email                      String?   @unique
+  emailVerifiedAt            DateTime?
+  emailVerificationTokenHash String?
+  emailVerificationExpiresAt DateTime?
+  passwordHash               String
+  createdAt                  DateTime  @default(now())
 
   // Named relations matching Friendship
   sentRequests     Friendship[] @relation("sentRequests")
