@@ -1,24 +1,19 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 @Injectable()
 export class EmailService {
-  async sendVerification(email: string, username: string, token: string) {
-    const host = process.env.SMTP_HOST;
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const frontendUrl = process.env.FRONTEND_URL?.replace(/\/+$/, '');
-    const port = Number(process.env.SMTP_PORT ?? 465);
+  private readonly logger = new Logger(EmailService.name);
 
-    if (
-      !host ||
-      !user ||
-      !pass ||
-      !frontendUrl ||
-      !Number.isInteger(port) ||
-      port < 1 ||
-      port > 65535
-    ) {
+  async sendVerification(email: string, username: string, token: string) {
+    const apiKey = process.env.RESEND_API_KEY;
+    const sender = process.env.EMAIL_FROM;
+    const frontendUrl = process.env.FRONTEND_URL?.replace(/\/+$/, '');
+
+    if (!apiKey || !sender || !frontendUrl) {
       throw new ServiceUnavailableException(
         'O envio de e-mail não está configurado no servidor.',
       );
@@ -49,25 +44,60 @@ export class EmailService {
       verifyEmail: token,
     }).toString();
 
+    let response: Response;
     try {
-      const transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: { user, pass },
-      });
-
-      await transporter.sendMail({
-        from: process.env.EMAIL_FROM || user,
-        to: email,
-        subject: 'Confirme seu e-mail - Ryuto',
-        text: `Olá, ${username}!\n\nConfirme seu e-mail acessando: ${verificationUrl.toString()}\n\nO link expira em 24 horas.`,
-        html: `<p>Olá, ${this.escapeHtml(username)}!</p><p>Confirme seu e-mail clicando no link abaixo. Ele expira em 24 horas.</p><p><a href="${verificationUrl.toString()}">Confirmar meu e-mail</a></p>`,
+      response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: sender,
+          to: [email],
+          subject: 'Confirme seu e-mail - Ryuto',
+          text:
+            `Olá, ${username}!\n\n` +
+            `Confirme seu e-mail acessando: ${verificationUrl.toString()}\n\n` +
+            'O link expira em 24 horas.',
+          html:
+            `<p>Olá, ${this.escapeHtml(username)}!</p>` +
+            '<p>Confirme seu e-mail clicando no link abaixo. ' +
+            'Ele expira em 24 horas.</p>' +
+            `<p><a href="${verificationUrl.toString()}">` +
+            'Confirmar meu e-mail</a></p>',
+        }),
+        signal: AbortSignal.timeout(15_000),
       });
     } catch (error) {
-      if (error instanceof ServiceUnavailableException) throw error;
+      this.logger.error(
+        'Falha ao conectar à API do Resend.',
+        error instanceof Error ? error.stack : undefined,
+      );
       throw new ServiceUnavailableException(
-        'Não foi possível enviar o e-mail de confirmação. Verifique a configuração SMTP e tente novamente.',
+        'Não foi possível conectar ao serviço de e-mail. Tente novamente.',
+      );
+    }
+
+    if (!response.ok) {
+      this.logger.error(`A API do Resend respondeu com HTTP ${response.status}.`);
+      if (response.status === 401 || response.status === 403) {
+        throw new ServiceUnavailableException(
+          'A chave do Resend é inválida ou o remetente ainda não foi verificado.',
+        );
+      }
+      if (response.status === 429) {
+        throw new ServiceUnavailableException(
+          'O limite de envio do Resend foi atingido. Tente novamente mais tarde.',
+        );
+      }
+      if (response.status === 400 || response.status === 422) {
+        throw new ServiceUnavailableException(
+          'O Resend recusou o e-mail. Confira o remetente e o endereço de destino.',
+        );
+      }
+      throw new ServiceUnavailableException(
+        `O serviço de e-mail falhou (HTTP ${response.status}). Tente novamente.`,
       );
     }
   }
