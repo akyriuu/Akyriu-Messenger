@@ -31,7 +31,7 @@ A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e troc
 - Comunicação em tempo real com Socket.IO.
 - Frontend web em React e TypeScript.
 
-A extensão ainda não está pronta para instalação ou publicação. A pasta `extension/` contém código inicial e precisa ser concluída.
+A extensão Chrome Manifest V3 oferece autenticação, contatos, solicitações de amizade e conversas usando o mesmo backend do frontend web.
 
 ### Autenticação
 
@@ -61,7 +61,7 @@ uma maiúscula e um número. O cadastro e o login não exigem e-mail.
 
 ### Extensão
 
-A estrutura de `extension/` é o ponto de partida para a futura experiência no navegador. O manifesto e o fluxo de integração ainda precisam ser implementados antes de carregar a extensão no browser.
+A extensão Chrome Manifest V3 se conecta ao backend publicado em `https://ryuto-messenger.onrender.com` por padrão. Para compilar e instalar, consulte [extension/README.md](./extension/README.md).
 
 ## Arquitetura
 

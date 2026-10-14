@@ -2,109 +2,122 @@ import { io, type Socket } from 'socket.io-client';
 import {
   API_URL,
   SOCKET_URL,
-  normaliseList,
-  normaliseUser,
   request,
   type ChatMessage,
   type Friend,
+  type FriendRequest,
   type User,
 } from './api';
 import './style.css';
 
-type AuthResult = {
-  access_token?: string;
-  accessToken?: string;
-  token?: string;
-  user?: any;
-  data?: any;
-};
+type LoginResult = { accessToken: string; user: User };
+
 const root = document.querySelector<HTMLDivElement>('#app')!;
-root.innerHTML = `<header class="topbar"><div class="brand"><div class="logo">O</div><div><strong>Akyriu</strong><small>MESSENGER</small></div></div><span id="connection" class="connection"><i></i> Offline</span></header><main id="screen"></main><div id="toast" class="toast"></div>`;
+const logoUrl = chrome.runtime.getURL('icons/icon48.png');
+root.innerHTML = `<header class="topbar"><div class="brand"><img class="logo" src="${logoUrl}" alt=""><div><strong>Ryuto</strong><small>MESSENGER</small></div></div><span id="connection" class="connection"><i></i> Desconectado</span></header><main id="screen"></main><div id="toast" class="toast" role="status"></div>`;
+
 const screen = document.querySelector<HTMLElement>('#screen')!;
 const connection = document.querySelector<HTMLElement>('#connection')!;
 const toastEl = document.querySelector<HTMLElement>('#toast')!;
-let token = '',
-  me: User | null = null,
-  friends: Friend[] = [],
-  requests: any[] = [],
-  activeFriend: Friend | null = null,
-  messages: ChatMessage[] = [],
-  socket: Socket | null = null,
-  view: 'login' | 'register' = 'login',
-  toastTimer = 0;
+let token = '';
+let me: User | null = null;
+let friends: Friend[] = [];
+let requests: FriendRequest[] = [];
+let activeFriend: Friend | null = null;
+let messages: ChatMessage[] = [];
+let socket: Socket | null = null;
+let view: 'login' | 'register' = 'login';
+let toastTimer = 0;
+
 const toast = (message: string) => {
   toastEl.textContent = message;
   toastEl.classList.add('visible');
   window.clearTimeout(toastTimer);
   toastTimer = window.setTimeout(
     () => toastEl.classList.remove('visible'),
-    3000,
+    3500,
   );
 };
-const esc = (v: unknown) =>
-  String(v ?? '').replace(
+
+const esc = (value: unknown) =>
+  String(value ?? '').replace(
     /[&<>"']/g,
-    (c) =>
-      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[
-        c
-      ]!,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character]!,
   );
-const err = (e: unknown) =>
-  e instanceof Error ? e.message : 'Something went wrong.';
+
+const errorMessage = (error: unknown) =>
+  error instanceof Error ? error.message : 'Ocorreu um erro inesperado.';
+
 function setConnection(online: boolean) {
-  connection.innerHTML = `<i></i> ${online ? 'Connected' : 'Offline'}`;
+  connection.innerHTML = `<i></i> ${online ? 'Conectado' : 'Desconectado'}`;
   connection.classList.toggle('online', online);
 }
+
 function renderAuth() {
-  const register = view === 'register';
-  screen.innerHTML = `<section class="auth"><div class="eyebrow">SEUS AMIGOS, UM PASSO DE VOCÊ</div><h1>${register ? 'Crie sua conta' : 'É bom te ver.'}</h1><p class="muted">${register ? 'Acesse Akyriu e inicie uma conversa.' : 'Entre em uma conta e continue conversando. '}</p><form id="auth-form" class="form">${register ? `<label>Nome no App<input name="name" placeholder="Your name" required minlength="2"></label>` : ''}<label>Seu endereço de Email<input name="email" type="email" placeholder="email@exemplo.com" required></label><label>Password<input name="password" type="password" placeholder="Senha" required minlength="8"></label><button class="primary" type="submit">${register ? 'Crie uma conta' : 'Entre'}<span>→</span></button></form><p class="switch">${register ? 'Já possui uma conta?' : 'É novo aqui?'} <button id="switch-auth" class="text-button">${register ? 'Entre' : 'Crie uma conta'}</button></p><p class="auth-foot">Servidor: <code>${esc(API_URL)}</code></p></section>`;
+  const registering = view === 'register';
+  screen.innerHTML = `<section class="auth"><div class="eyebrow">SEUS AMIGOS, UM PASSO DE VOCÊ</div><h1>${registering ? 'Crie sua conta' : 'É bom te ver.'}</h1><p class="muted">${registering ? 'Crie sua conta Ryuto e comece a conversar.' : 'Entre na sua conta para continuar conversando.'}</p><form id="auth-form" class="form"><label>Nome de usuário<input name="username" autocomplete="username" placeholder="seu_usuario" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+"></label><label>Senha<input name="password" type="password" autocomplete="${registering ? 'new-password' : 'current-password'}" placeholder="${registering ? '8+ caracteres, maiúscula, minúscula e número' : 'Sua senha'}" required minlength="${registering ? 8 : 1}" maxlength="72" ${registering ? 'pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}" title="Use pelo menos 8 caracteres, incluindo uma letra maiúscula, uma minúscula e um número."' : ''}></label><button class="primary" type="submit">${registering ? 'Criar conta' : 'Entrar'}<span>→</span></button></form><p class="switch">${registering ? 'Já tem uma conta?' : 'Ainda não tem uma conta?'} <button id="switch-auth" class="text-button">${registering ? 'Fazer login' : 'Criar conta'}</button></p><p class="auth-foot">Servidor: <code>${esc(API_URL)}</code></p></section>`;
+
   document
     .querySelector<HTMLFormElement>('#auth-form')!
-    .addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.currentTarget as HTMLFormElement;
+    .addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget as HTMLFormElement;
       const data = new FormData(form);
+      const username = String(data.get('username')).trim();
+      const password = String(data.get('password'));
       const button = form.querySelector<HTMLButtonElement>('button')!;
       button.disabled = true;
-      button.textContent = 'Please wait…';
+      button.textContent = registering ? 'Criando conta…' : 'Entrando…';
+
       try {
-        const body: Record<string, string> = {
-          email: String(data.get('email')),
-          password: String(data.get('password')),
-        };
-        if (register) body.name = String(data.get('name'));
-        const result = await request<AuthResult>(
-          register ? '/auth/register' : '/auth/login',
-          undefined,
-          { method: 'POST', body: JSON.stringify(body) },
-        );
-        token =
-          result.access_token ??
-          result.accessToken ??
-          result.token ??
-          result.data?.access_token ??
-          result.data?.accessToken ??
-          '';
-        if (!token)
-          throw new Error('No JWT token in response; check README.md.');
-        me = normaliseUser(result);
+        if (registering) {
+          await request<User>('/auth/register', undefined, {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+          });
+          view = 'login';
+          renderAuth();
+          toast('Conta criada! Agora entre com seus dados.');
+          return;
+        }
+
+        const result = await request<LoginResult>('/auth/login', undefined, {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        if (!result.accessToken || !result.user?.id || !result.user.username) {
+          throw new Error('Resposta de autenticação inválida.');
+        }
+
+        token = result.accessToken;
+        me = result.user;
         await chrome.storage.local.set({ orbitToken: token, orbitUser: me });
         renderApp();
-      } catch (e) {
-        toast(err(e));
+      } catch (error) {
+        toast(errorMessage(error));
         button.disabled = false;
-        button.textContent = register ? 'Crie uma conta' : 'Entrar';
+        button.innerHTML = `${registering ? 'Criar conta' : 'Entrar'}<span>→</span>`;
       }
     });
+
   document
     .querySelector<HTMLButtonElement>('#switch-auth')!
     .addEventListener('click', () => {
-      view = register ? 'login' : 'register';
+      view = registering ? 'login' : 'register';
       renderAuth();
     });
 }
+
 function renderApp() {
-  screen.innerHTML = `<section class="app-shell"><aside class="sidebar"><div class="profile"><div class="avatar">${esc((me?.name || me?.email || 'Y').slice(0, 1).toUpperCase())}</div><div class="profile-copy"><strong>${esc(me?.name || 'Your account')}</strong><small>${esc(me?.email || '')}</small></div><button id="logout" class="icon-button" title="Sign out">↗</button></div><div class="section-heading"><span>CHATS</span><button id="refresh" class="icon-button">↻</button></div><div id="friends" class="friend-list"><div class="empty-small">Loading friends…</div></div><div class="add-friend"><div class="section-heading"><span>ADD A FRIEND</span></div><form id="add-friend-form" class="add-form"><input name="email" type="email" placeholder="Friend's email" required><button class="square-button">+</button></form></div><div class="requests"><div class="section-heading"><span>FRIEND REQUESTS</span><span id="request-count" class="count">0</span></div><div id="requests-list" class="requests-list"></div></div></aside><section class="chat"><div id="chat-content" class="chat-empty"><div class="empty-art">✳</div><h2>Sua próxima conversa<br>começa aqui.</h2><p>Choose a friend or send a friend request.</p></div></section></section>`;
+  screen.innerHTML = `<section class="app-shell"><aside class="sidebar"><div class="profile"><div class="avatar">${esc((me?.username || '?').slice(0, 1).toUpperCase())}</div><div class="profile-copy"><strong>${esc(me?.username || 'Minha conta')}</strong><small>Conta Ryuto</small></div><button id="logout" class="icon-button" title="Sair da conta" aria-label="Sair da conta">↗</button></div><div class="section-heading"><span>CONVERSAS</span><button id="refresh" class="icon-button" title="Atualizar" aria-label="Atualizar">↻</button></div><div id="friends" class="friend-list"><div class="empty-small">Carregando contatos…</div></div><div class="add-friend"><div class="section-heading"><span>ADICIONAR AMIGO</span></div><form id="add-friend-form" class="add-form"><input name="username" placeholder="Nome de usuário" required minlength="3" maxlength="30" pattern="[A-Za-z0-9_]+"><button class="square-button" aria-label="Enviar convite">+</button></form></div><div class="requests"><div class="section-heading"><span>CONVITES RECEBIDOS</span><span id="request-count" class="count">0</span></div><div id="requests-list" class="requests-list"></div></div></aside><section class="chat"><div id="chat-content" class="chat-empty"><div class="empty-art">✳</div><h2>Sua próxima conversa<br>começa aqui.</h2><p>Escolha um contato ou envie um convite para começar.</p></div></section></section>`;
+
   document.querySelector<HTMLButtonElement>('#logout')!.onclick = () =>
     void logout();
   document.querySelector<HTMLButtonElement>('#refresh')!.onclick = () =>
@@ -114,202 +127,205 @@ function renderApp() {
   void refreshLists();
   connectSocket();
 }
+
 async function refreshLists() {
   try {
-    const [fr, rq] = await Promise.all([
-      request<any>('/friends', token),
-      request<any>('/friends/requests', token),
+    const [friendships, incomingRequests] = await Promise.all([
+      request<{ friendshipId: string; friend: Friend }[]>('/friends', token),
+      request<FriendRequest[]>('/friends/requests/incoming', token),
     ]);
-    friends = normaliseList<any>(fr)
-      .map((f) => ({
-        id: String(f.id ?? f.userId ?? f.friend?.id ?? ''),
-        name:
-          f.name ??
-          f.username ??
-          f.friend?.name ??
-          f.email ??
-          f.friend?.email ??
-          'Friend',
-        email: f.email ?? f.friend?.email,
-      }))
-      .filter((f) => f.id);
-    requests = normaliseList<any>(rq);
+    friends = friendships.map(({ friend }) => friend);
+    requests = incomingRequests;
     renderFriends();
     renderRequests();
-  } catch (e) {
-    const f = document.querySelector<HTMLElement>('#friends');
-    if (f)
-      f.innerHTML = `<div class="empty-small">Could not load friends.</div>`;
-    const r = document.querySelector<HTMLElement>('#requests-list');
-    if (r)
-      r.innerHTML = `<div class="empty-small">Could not load requests.</div>`;
-    toast(`Loading friends failed: ${err(e)}`);
+  } catch (error) {
+    const friendList = document.querySelector<HTMLElement>('#friends');
+    if (friendList) {
+      friendList.innerHTML =
+        '<div class="empty-small">Não foi possível carregar seus contatos.</div>';
+    }
+    const requestList = document.querySelector<HTMLElement>('#requests-list');
+    if (requestList) {
+      requestList.innerHTML =
+        '<div class="empty-small">Não foi possível carregar os convites.</div>';
+    }
+    toast(`Falha ao carregar contatos: ${errorMessage(error)}`);
   }
 }
+
 function renderFriends() {
-  const el = document.querySelector<HTMLElement>('#friends');
-  if (!el) return;
+  const element = document.querySelector<HTMLElement>('#friends');
+  if (!element) return;
   if (!friends.length) {
-    el.innerHTML = `<div class="empty-small">No friends yet.<br>Add someone below.</div>`;
+    element.innerHTML =
+      '<div class="empty-small">Você ainda não tem contatos.<br>Adicione alguém acima.</div>';
     return;
   }
-  el.innerHTML = friends
+
+  element.innerHTML = friends
     .map(
-      (f, i) =>
-        `<button class="friend ${activeFriend?.id === f.id ? 'active' : ''}" data-id="${esc(f.id)}"><span class="avatar friend-avatar color-${i % 5}">${esc((f.name || '?').slice(0, 1).toUpperCase())}<i></i></span><span class="friend-copy"><strong>${esc(f.name)}</strong><small>${esc(f.email || 'Orbit contact')}</small></span><span class="friend-arrow">›</span></button>`,
+      (friend, index) =>
+        `<button class="friend ${activeFriend?.id === friend.id ? 'active' : ''}" data-id="${esc(friend.id)}"><span class="avatar friend-avatar color-${(index % 4) + 1}">${esc(friend.username.slice(0, 1).toUpperCase())}<i></i></span><span class="friend-copy"><strong>${esc(friend.username)}</strong><small>Contato Ryuto</small></span><span class="friend-arrow">›</span></button>`,
     )
     .join('');
-  el.querySelectorAll<HTMLButtonElement>('.friend').forEach(
-    (b) =>
-      (b.onclick = () => {
-        const f = friends.find((x) => x.id === b.dataset.id);
-        if (f) void openChat(f);
-      }),
-  );
+
+  element.querySelectorAll<HTMLButtonElement>('.friend').forEach((button) => {
+    button.onclick = () => {
+      const friend = friends.find((item) => item.id === button.dataset.id);
+      if (friend) void openChat(friend);
+    };
+  });
 }
+
 function renderRequests() {
-  const el = document.querySelector<HTMLElement>('#requests-list'),
-    count = document.querySelector<HTMLElement>('#request-count');
-  if (!el || !count) return;
+  const element = document.querySelector<HTMLElement>('#requests-list');
+  const count = document.querySelector<HTMLElement>('#request-count');
+  if (!element || !count) return;
   count.textContent = String(requests.length);
   if (!requests.length) {
-    el.innerHTML = `<div class="empty-small">No pending requests</div>`;
+    element.innerHTML =
+      '<div class="empty-small">Nenhum convite pendente.</div>';
     return;
   }
-  el.innerHTML = requests
-    .map((r) => {
-      const u = r.requester ?? r.from ?? r.user ?? r;
-      return `<div class="request-row"><span class="request-avatar">${esc((u.name || u.email || '?').slice(0, 1).toUpperCase())}</span><span class="request-copy"><strong>${esc(u.name || u.email || 'New friend')}</strong><small>Wants to connect</small></span><button class="accept-button" data-id="${esc(r.id ?? r.requestId ?? '')}">✓</button></div>`;
-    })
+
+  element.innerHTML = requests
+    .map(
+      (requestItem) =>
+        `<div class="request-row"><span class="request-avatar">${esc(requestItem.requester.username.slice(0, 1).toUpperCase())}</span><span class="request-copy"><strong>${esc(requestItem.requester.username)}</strong><small>Enviou um convite</small></span><button class="accept-button" data-id="${esc(requestItem.id)}" title="Aceitar convite" aria-label="Aceitar convite">✓</button></div>`,
+    )
     .join('');
-  el.querySelectorAll<HTMLButtonElement>('.accept-button').forEach(
-    (b) =>
-      (b.onclick = async () => {
-        if (!b.dataset.id) return toast('Request ID missing in API response.');
-        try {
-          await request('/friends/accept', token, {
-            method: 'POST',
-            body: JSON.stringify({ requestId: b.dataset.id }),
-          });
-          toast('Friend request accepted.');
-          await refreshLists();
-        } catch (e) {
-          toast(err(e));
-        }
-      }),
-  );
+
+  element.querySelectorAll<HTMLButtonElement>('.accept-button').forEach((button) => {
+    button.onclick = async () => {
+      const friendshipId = button.dataset.id;
+      if (!friendshipId) return;
+      try {
+        await request(
+          `/friends/requests/${encodeURIComponent(friendshipId)}/accept`,
+          token,
+          { method: 'PATCH' },
+        );
+        toast('Convite aceito.');
+        await refreshLists();
+      } catch (error) {
+        toast(errorMessage(error));
+      }
+    };
+  });
 }
-async function sendFriendRequest(e: SubmitEvent) {
-  e.preventDefault();
-  const form = e.currentTarget as HTMLFormElement,
-    input = form.elements.namedItem('email') as HTMLInputElement;
+
+async function sendFriendRequest(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const input = form.elements.namedItem('username') as HTMLInputElement;
+
   try {
-    await request('/friends/request', token, {
+    await request('/friends/requests', token, {
       method: 'POST',
-      body: JSON.stringify({ email: input.value.trim() }),
+      body: JSON.stringify({ username: input.value.trim() }),
     });
     input.value = '';
-    toast('Friend request sent.');
+    toast('Convite de amizade enviado.');
     await refreshLists();
-  } catch (e) {
-    toast(err(e));
+  } catch (error) {
+    toast(errorMessage(error));
   }
 }
+
 async function openChat(friend: Friend) {
   activeFriend = friend;
   messages = [];
   renderFriends();
   const chat = document.querySelector<HTMLElement>('#chat-content')!;
   chat.className = 'chat-view';
-  chat.innerHTML = `<div class="chat-header"><div class="avatar">${esc((friend.name || '?').slice(0, 1).toUpperCase())}</div><div><strong>${esc(friend.name)}</strong><small><span class="online-dot"></span> Orbit contact</small></div></div><div id="message-list" class="message-list"><div class="loading">Loading conversation…</div></div><form id="message-form" class="message-form"><input name="content" autocomplete="off" placeholder="Write a message…" maxlength="4000" required><button class="send-button" aria-label="Send message">↑</button></form>`;
+  chat.innerHTML = `<div class="chat-header"><div class="avatar">${esc(friend.username.slice(0, 1).toUpperCase())}</div><div><strong>${esc(friend.username)}</strong><small><span class="online-dot"></span> Ryuto</small></div></div><div id="message-list" class="message-list"><div class="loading">Carregando conversa…</div></div><form id="message-form" class="message-form"><input name="content" autocomplete="off" placeholder="Escreva uma mensagem…" maxlength="4000" required><button class="send-button" aria-label="Enviar mensagem">↑</button></form>`;
   document.querySelector<HTMLFormElement>('#message-form')!.onsubmit =
     sendMessage;
+
   try {
-    messages = normaliseList<ChatMessage>(
-      await request<any>(`/messages/${encodeURIComponent(friend.id)}`, token),
+    messages = await request<ChatMessage[]>(
+      `/messages/${encodeURIComponent(friend.id)}`,
+      token,
     );
     renderMessages();
-  } catch (e) {
+  } catch (error) {
     const list = document.querySelector<HTMLElement>('#message-list');
-    if (list)
-      list.innerHTML = `<div class="empty-chat">Couldn't load history. Check the GET /messages/:otherUserId route in README.md.<br><small>${esc(err(e))}</small></div>`;
+    if (list) {
+      list.innerHTML = `<div class="empty-chat">Não foi possível carregar o histórico.<br><small>${esc(errorMessage(error))}</small></div>`;
+    }
   }
 }
+
 function renderMessages() {
-  const el = document.querySelector<HTMLElement>('#message-list');
-  if (!el) return;
+  const element = document.querySelector<HTMLElement>('#message-list');
+  if (!element) return;
   if (!messages.length) {
-    el.innerHTML = `<div class="empty-chat">No messages yet. Say hello 👋</div>`;
+    element.innerHTML =
+      '<div class="empty-chat">Ainda não há mensagens. Diga oi 👋</div>';
     return;
   }
-  el.innerHTML = messages
-    .map((m) => {
-      const mine = String(m.senderId ?? (m as any).sender?.id ?? '') === me?.id;
-      const time = m.createdAt
-        ? new Date(m.createdAt).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '';
-      return `<div class="message-row ${mine ? 'mine' : ''}"><div class="bubble">${esc(m.content ?? m.text ?? '')}<small>${esc(time)}</small></div></div>`;
+
+  element.innerHTML = messages
+    .map((message) => {
+      const mine = message.senderId === me?.id;
+      const time = new Date(message.createdAt).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      return `<div class="message-row ${mine ? 'mine' : ''}"><div class="bubble">${esc(message.content)}<small>${esc(time)}</small></div></div>`;
     })
     .join('');
-  el.scrollTop = el.scrollHeight;
+  element.scrollTop = element.scrollHeight;
 }
-function sendMessage(e: SubmitEvent) {
-  e.preventDefault();
-  const form = e.currentTarget as HTMLFormElement,
-    input = form.elements.namedItem('content') as HTMLInputElement,
-    content = input.value.trim();
+
+function addMessage(message: ChatMessage) {
+  if (messages.some((item) => item.id === message.id)) return;
+  if (
+    activeFriend &&
+    (message.senderId === activeFriend.id ||
+      message.receiverId === activeFriend.id)
+  ) {
+    messages.push(message);
+    renderMessages();
+  }
+}
+
+function sendMessage(event: SubmitEvent) {
+  event.preventDefault();
+  const form = event.currentTarget as HTMLFormElement;
+  const input = form.elements.namedItem('content') as HTMLInputElement;
+  const content = input.value.trim();
   if (!content || !activeFriend) return;
-  if (!socket?.connected) return toast('Not connected to chat server.');
-  socket.emit('sendMessage', { recipientId: activeFriend.id, content });
-  messages.push({
-    senderId: me?.id,
-    recipientId: activeFriend.id,
+  if (!socket?.connected) return toast('Sem conexão com o chat em tempo real.');
+  socket.emit('message:send', {
+    receiverId: activeFriend.id,
     content,
-    createdAt: new Date().toISOString(),
   });
-  renderMessages();
   input.value = '';
 }
+
 function connectSocket() {
   socket?.disconnect();
   socket = io(SOCKET_URL, {
-    transports: ['websocket', 'polling'],
     auth: { token },
-    extraHeaders: { Authorization: `Bearer ${token}` },
+    transports: ['websocket', 'polling'],
   });
   socket.on('connect', () => {
     setConnection(true);
-    if (me?.id) socket?.emit('join', { userId: me.id });
+    socket?.emit('user:online');
   });
   socket.on('disconnect', () => setConnection(false));
-  socket.on('connect_error', (e) => {
+  socket.on('connect_error', (error) => {
     setConnection(false);
-    console.warn('Socket error:', e.message);
+    toast(`Realtime indisponível: ${error.message}`);
   });
-  socket.on('message', (m: ChatMessage) => {
-    const sender = String(m.senderId ?? (m as any).sender?.id ?? ''),
-      recipient = String(m.recipientId ?? (m as any).recipient?.id ?? '');
-    if (
-      activeFriend &&
-      (sender === activeFriend.id || recipient === activeFriend.id)
-    ) {
-      const duplicate = messages.some(
-        (x) =>
-          x.content === m.content &&
-          x.senderId === m.senderId &&
-          Math.abs(
-            new Date(x.createdAt || 0).getTime() -
-              new Date(m.createdAt || 0).getTime(),
-          ) < 5000,
-      );
-      if (!duplicate) messages.push(m);
-      renderMessages();
-    }
-  });
+  socket.on('message:new', addMessage);
+  socket.on('message:sent', addMessage);
+  socket.on('message:error', ({ message }: { message: string }) =>
+    toast(message),
+  );
 }
+
 async function logout() {
   socket?.disconnect();
   socket = null;
@@ -318,21 +334,27 @@ async function logout() {
   friends = [];
   requests = [];
   activeFriend = null;
+  messages = [];
   await chrome.storage.local.remove(['orbitToken', 'orbitUser']);
   setConnection(false);
   view = 'login';
   renderAuth();
 }
+
 async function init() {
   try {
     const saved = await chrome.storage.local.get(['orbitToken', 'orbitUser']);
-    if (saved.orbitToken) {
+    if (saved.orbitToken && saved.orbitUser) {
       token = saved.orbitToken;
-      me = saved.orbitUser || null;
+      me = saved.orbitUser as User;
       renderApp();
-    } else renderAuth();
+    } else {
+      renderAuth();
+    }
   } catch {
+    toast('Não foi possível restaurar a sessão salva.');
     renderAuth();
   }
 }
+
 void init();
