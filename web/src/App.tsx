@@ -66,11 +66,8 @@ export default function App() {
       return null;
     }
   });
-  const [authMode, setAuthMode] = useState<
-    'login' | 'register' | 'resend' | 'update-email'
-  >('login');
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -98,31 +95,6 @@ export default function App() {
     },
     [],
   );
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
-    const token = params.get('verifyEmail');
-    if (!token) return;
-
-    params.delete('verifyEmail');
-    const hash = params.toString();
-    window.history.replaceState(
-      null,
-      '',
-      `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ''}`,
-    );
-    api
-      .verifyEmail(token)
-      .then(({ message }) => notify(message))
-      .catch((error: unknown) =>
-        notify(
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível confirmar o e-mail.',
-          'error',
-        ),
-      );
-  }, [notify]);
 
   const logout = useCallback(() => {
     socketRef.current?.disconnect();
@@ -233,20 +205,8 @@ export default function App() {
     setAuthBusy(true);
     try {
       if (authMode === 'register') {
-        await api.register(username.trim(), password, email.trim());
-        notify('Conta criada! Confirme seu e-mail pelo link que enviamos.');
-        setAuthMode('login');
-      } else if (authMode === 'resend') {
-        const result = await api.resendVerification(email.trim());
-        notify(result.message);
-        setAuthMode('login');
-      } else if (authMode === 'update-email') {
-        const result = await api.updateEmail(
-          username.trim(),
-          password,
-          email.trim(),
-        );
-        notify(result.message);
+        await api.register(username.trim(), password);
+        notify('Conta criada! Agora entre com seus dados.');
         setAuthMode('login');
       } else {
         const result = await api.login(username.trim(), password);
@@ -419,87 +379,59 @@ export default function App() {
               </p>
             </div>
             <form className="auth-form" onSubmit={handleAuth}>
-              {authMode !== 'resend' && (
-                <label>
-                  Nome de usuário
-                  <div className="input-wrap">
-                    <span>@</span>
-                    <input
-                      autoComplete="username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="seu_usuario"
-                      minLength={3}
-                      maxLength={30}
-                      required
-                    />
-                  </div>
-                </label>
-              )}
-              {authMode === 'register' ||
-              authMode === 'resend' ||
-              authMode === 'update-email' ? (
-                <label>
-                  E-mail
+              <label>
+                Nome de usuário
+                <div className="input-wrap">
+                  <span>@</span>
                   <input
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="voce@exemplo.com"
-                    maxLength={254}
+                    autoComplete="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="seu_usuario"
+                    minLength={3}
+                    maxLength={30}
                     required
                   />
-                </label>
-              ) : null}
-              {authMode !== 'resend' && (
-                <label>
-                  Senha
-                  <input
-                    type="password"
-                    autoComplete={
-                      authMode === 'login' ? 'current-password' : 'new-password'
-                    }
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={
-                      authMode === 'register'
-                        ? '8+ caracteres, maiúscula, minúscula e número'
-                        : 'Sua senha'
-                    }
-                    minLength={authMode === 'login' ? 1 : 8}
-                    maxLength={72}
-                    pattern={
-                      authMode === 'register'
-                        ? '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}'
-                        : undefined
-                    }
-                    title="Use pelo menos 8 caracteres, incluindo uma letra maiúscula, uma minúscula e um número."
-                    required
-                  />
-                </label>
-              )}
+                </div>
+              </label>
+              <label>
+                Senha
+                <input
+                  type="password"
+                  autoComplete={
+                    authMode === 'login' ? 'current-password' : 'new-password'
+                  }
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder={
+                    authMode === 'register'
+                      ? '8+ caracteres, maiúscula, minúscula e número'
+                      : 'Sua senha'
+                  }
+                  minLength={authMode === 'login' ? 1 : 8}
+                  maxLength={72}
+                  pattern={
+                    authMode === 'register'
+                      ? '(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,72}'
+                      : undefined
+                  }
+                  title="Use pelo menos 8 caracteres, incluindo uma letra maiúscula, uma minúscula e um número."
+                  required
+                />
+              </label>
               <button
                 className="primary-button auth-submit"
                 disabled={authBusy}
               >
                 {authBusy ? <span className="spinner" /> : null}
-                {authMode === 'login'
-                  ? 'Entrar na conta'
-                  : authMode === 'register'
-                    ? 'Criar conta'
-                    : authMode === 'resend'
-                      ? 'Reenviar confirmação'
-                      : 'Atualizar e-mail'}{' '}
+                {authMode === 'login' ? 'Entrar na conta' : 'Criar conta'}{' '}
                 <ArrowUpRight size={17} />
               </button>
             </form>
             <div className="auth-switch">
               {authMode === 'login'
                 ? 'Ainda não tem uma conta?'
-                : authMode === 'register'
-                  ? 'Já tem uma conta?'
-                  : 'Voltar para o login?'}
+                : 'Já tem uma conta?'}
               <button
                 onClick={() =>
                   setAuthMode(authMode === 'login' ? 'register' : 'login')
@@ -508,16 +440,6 @@ export default function App() {
                 {authMode === 'login' ? 'Criar conta' : 'Fazer login'}
               </button>
             </div>
-            {authMode === 'login' && (
-              <div className="auth-switch">
-                <button onClick={() => setAuthMode('resend')}>
-                  Reenviar confirmação
-                </button>
-                <button onClick={() => setAuthMode('update-email')}>
-                  Cadastrar ou atualizar e-mail
-                </button>
-              </div>
-            )}
             <div className="security-note">
               <ShieldCheck size={15} />
               <span>Conexão autenticada por token JWT</span>

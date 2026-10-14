@@ -45,28 +45,10 @@ async function request<T>(
 }
 
 export const api = {
-  register: (username: string, password: string, email: string) =>
+  register: (username: string, password: string) =>
     request<User>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ username, password, email }),
-    }),
-
-  verifyEmail: (token: string) =>
-    request<{ message: string }>('/auth/verify-email', {
-      method: 'POST',
-      body: JSON.stringify({ token }),
-    }),
-
-  resendVerification: (email: string) =>
-    request<{ message: string }>('/auth/resend-verification', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    }),
-
-  updateEmail: (username: string, password: string, email: string) =>
-    request<{ message: string }>('/auth/update-email', {
-      method: 'POST',
-      body: JSON.stringify({ username, password, email }),
+      body: JSON.stringify({ username, password }),
     }),
 
   login: (username: string, password: string) =>

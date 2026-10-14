@@ -23,9 +23,8 @@ A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e troc
 
 ## Funcionalidades atuais
 
-- Cadastro e autenticação com username, e-mail confirmado e senha forte.
+- Cadastro e autenticação com username e senha forte.
 - Senhas armazenadas com hash usando bcrypt.
-- Confirmação de e-mail com link de uso único, válido por 24 horas.
 - Autenticação da API com JWT.
 - Solicitações de amizade e gerenciamento de contatos.
 - Envio de mensagens persistidas no PostgreSQL.
@@ -34,32 +33,10 @@ A experiência busca ser simples: encontrar pessoas, iniciar uma conversa e troc
 
 A extensão ainda não está pronta para instalação ou publicação. A pasta `extension/` contém código inicial e precisa ser concluída.
 
-### E-mail e autenticação
+### Autenticação
 
 O cadastro exige senha de pelo menos 8 caracteres com uma letra minúscula,
-uma maiúscula e um número. Para enviar confirmações pelo Resend, configure
-uma chave de API e um remetente verificado:
-
-```env
-RESEND_API_KEY=re_sua_chave_de_api
-EMAIL_FROM=Ryuto <no-reply@seu-dominio-verificado.com>
-FRONTEND_URL=http://localhost:5173
-```
-
-Guarde a chave do Resend somente nas variáveis de ambiente do backend (por
-exemplo, no Render), nunca no frontend nem no GitHub. No plano gratuito, o
-Resend limita o envio a 100 e-mails por dia e 3.000 por mês; para enviar a
-destinatários arbitrários, verifique seu domínio e o endereço do remetente no
-Resend. Aplique a migração com `npx prisma migrate deploy`. Contas antigas sem
-e-mail podem cadastrar/atualizar o endereço na tela de login e confirmá-lo
-antes de entrar.
-
-
-
-
-
-
-
+uma maiúscula e um número. O cadastro e o login não exigem e-mail.
 
 ## Tecnologias
 
